@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package todo;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "/";
+
+service TodoService {
+    rpc AddTask (AddTaskRequest) returns (AddTaskResponse);
+    rpc GetTask (GetTaskRequest) returns (GetTaskResponse);
+    rpc GetTasks (GetTasksRequest) returns (GetTasksResponse);
+    rpc CompleteTask (CompleteTaskRequest) returns (CompleteTaskResponse);
+    rpc CancelTask (CancelTaskRequest) returns (CancelTaskResponse);
+}
+
+enum TaskStatus {
+  TODO = 0;
+  DUE = 1;
+  OVERDUE = 2;
+  CANCELLED = 3;
+  COMPLETED = 4;
+}
+
+message Task {
+  string name = 1;
+  string note = 2;
+  TaskStatus status = 3;
+  google.protobuf.Timestamp dueOn = 4;
+}
+
+message AddTaskRequest {
+  Task task = 1;
+}
+
+message AddTaskResponse {
+  Task task = 1;
+}
+
+message GetTasksRequest {}
+
+message GetTaskRequest {
+  int32 id = 1;
+}
+
+message GetTaskResponse {
+  Task task = 1;
+}
+
+message GetTasksResponse {
+  repeated Task tasks = 1;
+}
+
+message CompleteTaskRequest {
+  int32 id = 1;
+}
+
+message CompleteTaskResponse {
+  Task task = 1;
+}
+
+message CancelTaskRequest {
+  int32 id = 1;
+}
+
+message CancelTaskResponse {
+  Task task = 1;
+}
+
