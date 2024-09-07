@@ -4,7 +4,7 @@
 // - protoc             v3.20.3
 // source: proto/todo.proto
 
-package __
+package proto
 
 import (
 	context "context"

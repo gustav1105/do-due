@@ -3,8 +3,9 @@ package main
 import (
 	"log"
 	"net"
-import (
-	"github.com/gustav1105/do-due/internal/proto" // Adjust the import path
+
+  "github.com/gustav1105/do-due/internal/proto"
+  "github.com/gustav1105/do-due/internal/server"
 	"google.golang.org/grpc"
 )
 
