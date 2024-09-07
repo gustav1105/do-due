@@ -2,68 +2,97 @@ package server
 
 import (
     "context"
+    "database/sql"
     "time"
 
+    _ "github.com/go-sql-driver/mysql"
     "github.com/gustav1105/do-due/internal/proto"
     "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Server struct {
     proto.UnimplementedTodoServiceServer
+    db *sql.DB
 }
 
-// AddTask implements TodoService.AddTask
+func NewServer(dsn string) (*Server, error) {
+    db, err := sql.Open("mysql", dsn)
+    if err != nil {
+        return nil, err
+    }
+
+    if err := db.Ping(); err != nil {
+        return nil, err
+    }
+
+    return &Server{db: db}, nil
+}
+
 func (s *Server) AddTask(ctx context.Context, req *proto.AddTaskRequest) (*proto.AddTaskResponse, error) {
-    // Implement your logic here
     task := req.GetTask()
-    // For demo purposes, we'll just return the task we received
+    
+    _, err := s.db.Exec(`INSERT INTO tasks (name, note, status, due_on) VALUES (?, ?, ?, ?)`,
+        task.GetName(),
+        task.GetNote(),
+        task.GetStatus(),
+        task.GetDueOn().AsTime(),
+    )
+    if err != nil {
+        return nil, err
+    }
+
     return &proto.AddTaskResponse{
         Task: task,
     }, nil
 }
 
-// GetTask implements TodoService.GetTask
 func (s *Server) GetTask(ctx context.Context, req *proto.GetTaskRequest) (*proto.GetTaskResponse, error) {
-    // Implement your logic here
     taskID := req.GetId()
-    // For demo purposes, we'll return a dummy task
+    task := &proto.Task{}
+
+    row := s.db.QueryRow(`SELECT name, note, status, due_on FROM tasks WHERE id = ?`, taskID)
+    var dueOn time.Time
+    if err := row.Scan(&task.Name, &task.Note, &task.Status, &dueOn); err != nil {
+        return nil, err
+    }
+    task.DueOn = timestamppb.New(dueOn)
+
     return &proto.GetTaskResponse{
-        Task: &proto.Task{
-            Name:   "Sample Task",
-            Note:   "This is a sample task.",
-            Status: proto.TaskStatus_TODO,
-            DueOn:  timestamppb.New(time.Now().Add(24 * time.Hour)), // Example due date
-        },
+        Task: task,
     }, nil
 }
 
-// GetTasks implements TodoService.GetTasks
 func (s *Server) GetTasks(ctx context.Context, req *proto.GetTasksRequest) (*proto.GetTasksResponse, error) {
-    // Implement your logic here
-    tasks := []*proto.Task{
-        {
-            Name:   "Sample Task 1",
-            Note:   "This is a sample task 1.",
-            Status: proto.TaskStatus_TODO,
-            DueOn:  timestamppb.New(time.Now().Add(48 * time.Hour)), // Example due date
-        },
-        {
-            Name:   "Sample Task 2",
-            Note:   "This is a sample task 2.",
-            Status: proto.TaskStatus_DUE,
-            DueOn:  timestamppb.New(time.Now().Add(72 * time.Hour)), // Example due date
-        },
+    rows, err := s.db.Query(`SELECT name, note, status, due_on FROM tasks`)
+    if err != nil {
+        return nil, err
     }
+    defer rows.Close()
+
+    tasks := []*proto.Task{}
+    for rows.Next() {
+        task := &proto.Task{}
+        var dueOn time.Time
+        if err := rows.Scan(&task.Name, &task.Note, &task.Status, &dueOn); err != nil {
+            return nil, err
+        }
+        task.DueOn = timestamppb.New(dueOn)
+        tasks = append(tasks, task)
+    }
+
     return &proto.GetTasksResponse{
         Tasks: tasks,
     }, nil
 }
 
-// CompleteTask implements TodoService.CompleteTask
 func (s *Server) CompleteTask(ctx context.Context, req *proto.CompleteTaskRequest) (*proto.CompleteTaskResponse, error) {
-    // Implement your logic here
     taskID := req.GetId()
-    // For demo purposes, we'll return a dummy completed task
+
+    _, err := s.db.Exec(`UPDATE tasks SET status = ? WHERE id = ?`, proto.TaskStatus_COMPLETED, taskID)
+    if err != nil {
+        return nil, err
+    }
+
     return &proto.CompleteTaskResponse{
         Task: &proto.Task{
             Name:   "Completed Task",
@@ -72,11 +101,14 @@ func (s *Server) CompleteTask(ctx context.Context, req *proto.CompleteTaskReques
     }, nil
 }
 
-// CancelTask implements TodoService.CancelTask
 func (s *Server) CancelTask(ctx context.Context, req *proto.CancelTaskRequest) (*proto.CancelTaskResponse, error) {
-    // Implement your logic here
     taskID := req.GetId()
-    // For demo purposes, we'll return a dummy canceled task
+
+    _, err := s.db.Exec(`UPDATE tasks SET status = ? WHERE id = ?`, proto.TaskStatus_CANCELLED, taskID)
+    if err != nil {
+        return nil, err
+    }
+
     return &proto.CancelTaskResponse{
         Task: &proto.Task{
             Name:   "Canceled Task",
